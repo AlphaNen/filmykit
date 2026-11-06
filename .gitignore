@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Next.js may recreate agent hints locally; not part of the product
+/AGENTS.md
+
+# waitlist signups
+/data/
+
+# design copy + full logo kit (see _internal/README.md)
+/_internal/
