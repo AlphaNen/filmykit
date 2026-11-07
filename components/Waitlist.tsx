@@ -13,15 +13,23 @@ export function Waitlist() {
   );
   const [message, setMessage] = useState("");
 
-  async function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("loading");
     setMessage("");
+    const form = e.currentTarget;
+    const honeypot = (
+      form.elements.namedItem("website") as HTMLInputElement | null
+    )?.value;
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, industry }),
+        body: JSON.stringify({
+          email,
+          industry,
+          website: honeypot,
+        }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
@@ -49,8 +57,17 @@ export function Waitlist() {
 
       <form
         onSubmit={onSubmit}
-        className="card-border flex w-full max-w-[720px] flex-col gap-5 overflow-hidden p-6 md:p-8"
+        className="card-border relative flex w-full max-w-[720px] flex-col gap-5 overflow-hidden p-6 md:p-8"
       >
+        <input
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden
+          className="hidden"
+        />
+
         <label className="flex flex-col gap-2">
           <span className="type-body-small text-[var(--paper)]">
             {waitlist.emailLabel}

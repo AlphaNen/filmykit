@@ -69,8 +69,15 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 | -------- | ----------- | ------- |
 | `NEXT_PUBLIC_SITE_URL` | Production | Canonical site origin for **`metadataBase`** (Open Graph / absolute image URLs), e.g. `https://yourdomain.com` |
 | `VERCEL_URL` | Vercel builds | Used as fallback for `metadataBase` if `NEXT_PUBLIC_SITE_URL` is unset (HTTPS assumed) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Always (local + prod) | Same Supabase project URL as 13Stack |
+| `SUPABASE_SERVICE_ROLE_KEY` | Always (server only) | Service role key — never expose to the browser |
+| `SUPABASE_DB_SCHEMA` | Optional | Defaults to `thirteenstack` (same schema as 13Stack) |
 
-Local dev falls back to `http://localhost:3000` in `app/layout.tsx`.
+Copy values from the 13Stack `.env.local` / Vercel project into fylmkit’s `.env.local` and Vercel env. See `.env.example`.
+
+**Supabase API schema:** In the shared project, expose **`thirteenstack`** under **Dashboard → Project Settings → API → Exposed schemas**. Until that is set, the JS client cannot read/write `newsletter_subscribers` (error `PGRST106`), even with valid env vars. The 13Stack migrate script documents the same step.
+
+Local `metadataBase` falls back to `http://localhost:3000` in `app/layout.tsx`.
 
 ### Next.js (`next.config.ts`)
 
@@ -80,11 +87,15 @@ Local dev falls back to `http://localhost:3000` in `app/layout.tsx`.
 
 ## Waitlist (`POST /api/waitlist`)
 
-- **Request body (JSON):** `{ "email": string, "industry"?: string }`
+- **Request body (JSON):** `{ "email": string, "industry"?: string, "website"?: string }`
+- **`website`** is a honeypot field (hidden in the UI); filled values are treated as bots and return `{ ok: true }` without writing.
 - **Response:** `{ "ok": true }` or `{ "ok": false, "error": string }` with appropriate HTTP status.
-- **Persistence:** Appends newline-delimited JSON to **`data/waitlist.jsonl`** (directory created on first write). The **`/data/`** directory is **gitignored**.
+- **Persistence:** Upserts into the shared Supabase table **`thirteenstack.newsletter_subscribers`** (same project and schema as 13Stack newsletter / contact opt-ins), using the service-role admin client in `lib/supabase/`.
+  - `source`: `fylmkit` (kept if the email already exists from 13Stack)
+  - `lists`: merges existing lists and adds `fylmkit_waitlist`; optional industry is stored as `industry:<label>`
+  - Existing `opt_in_studio` / `opt_in_skedvio` flags are preserved on merge
 
-**Deployment note:** On **serverless** hosts, each instance has its own filesystem; writes are not durable across invocations and are not shared between regions. For production, point the route at object storage, a queue, or a provider API (e.g. Resend, Mailchimp, Supabase) — V1.0 keeps the file append for simplicity on a single long-lived Node process or for local demos.
+Server helpers mirror 13Stack: `lib/supabase/env.ts` + `lib/supabase/admin.ts`.
 
 ## Metadata & SEO
 
@@ -110,4 +121,4 @@ Only assets under **`public/`** are served. Full logo kits or copy briefs can li
 
 ---
 
-**Version:** V1.0 — marketing + waitlist, file-based signup store, no product app UI.
+**Version:** V1.0 — marketing + waitlist (Supabase `newsletter_subscribers`), no product app UI.
